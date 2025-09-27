@@ -1,0 +1,21 @@
+# Node / Next
+web/node_modules/
+web/.next/
+web/.turbo/
+web/.swc/
+web/.cache/
+web/out/
+web/.vercel/
+
+# Python
+api/.venv/
+api/**/__pycache__/
+api/.pytest_cache/
+api/.mypy_cache/
+
+# General
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
