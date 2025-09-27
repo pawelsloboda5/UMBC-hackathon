@@ -35,6 +35,7 @@ docker-compose up --build api db
 
 ```bash
 cd web
+npm install
 npm run dev
 ```
 
