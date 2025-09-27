@@ -25,6 +25,11 @@ export default function Header() {
       isActive: (p) => p === "/",
     },
     {
+      href: "/dashboard-provider",
+      label: "Dashboard",
+      isActive: (p) => p.startsWith("/dashboard-provider"),
+    },
+    {
       href: "/scan",
       label: "Scan",
       isActive: (p) => p.startsWith("/scan"),

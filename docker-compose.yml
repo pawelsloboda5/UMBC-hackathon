@@ -6,7 +6,7 @@ services:
     build: ./db
     image: hackumbc/db:17
     # Uncomment the next line if a teammate on Apple Silicon hits image issues:
-    # platform: linux/amd64
+    platform: linux/amd64
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
