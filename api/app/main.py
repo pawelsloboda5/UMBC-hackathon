@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import health
+from .routers import health, scan
 
 app = FastAPI(title="HackUMBC API", version="0.1.0")
 
@@ -13,3 +13,4 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix="/health", tags=["health"])
+app.include_router(scan.router, prefix="/scan", tags=["scan"])

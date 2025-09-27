@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ScanResponse } from "@/types/scan";
 
 type FormState = {
   from: string;
@@ -11,20 +12,48 @@ type FormState = {
 
 export default function ScanPage() {
   const [form, setForm] = useState<FormState>({ from: "", to: "", subject: "", body: "" });
-  const [showResult, setShowResult] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ScanResponse | null>(null);
 
   function handleChange<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setShowResult(true);
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          from: form.from,
+          to: form.to || undefined,
+          subject: form.subject,
+          body: form.body,
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.error || `Request failed: ${res.status}`);
+      }
+      const data = (await res.json()) as ScanResponse;
+      setResult(data);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleReset() {
     setForm({ from: "", to: "", subject: "", body: "" });
-    setShowResult(false);
+    setResult(null);
+    setError(null);
+    setLoading(false);
   }
 
   return (
@@ -37,11 +66,11 @@ export default function ScanPage() {
               <label className="block text-sm mb-1" htmlFor="from">From</label>
               <input
                 id="from"
-                type="email"
+                type="text"
                 value={form.from}
                 onChange={(e) => handleChange("from", e.target.value)}
                 className="w-full rounded-md border px-3 py-2 bg-white dark:bg-slate-900"
-                placeholder="sender@example.com"
+                placeholder="sender (any text)"
                 required
               />
             </div>
@@ -91,24 +120,50 @@ export default function ScanPage() {
         </section>
 
         <section className="rounded-2xl border bg-white/60 dark:bg-slate-900/40 backdrop-blur p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Mock Result</h2>
-          {!showResult ? (
-            <p className="text-sm text-slate-600 dark:text-slate-300">Submit the form to see a mock classification.</p>
-          ) : (
+          <h2 className="text-lg font-semibold mb-4">Result</h2>
+          {!result && !loading && !error && (
+            <p className="text-sm text-slate-600 dark:text-slate-300">Submit the form to analyze the email.</p>
+          )}
+          {loading && (
+            <p className="text-sm text-slate-600 dark:text-slate-300">Analyzing…</p>
+          )}
+          {error && (
+            <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+          )}
+          {result && (
             <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 border-yellow-200">
-                Suspicious (Mock)
+              <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium border-slate-200"
+                style={{
+                  backgroundColor:
+                    result.verdict === "phishing" ? "#fee2e2" : result.verdict === "needs_review" ? "#fef9c3" : "#dcfce7",
+                  color:
+                    result.verdict === "phishing" ? "#991b1b" : result.verdict === "needs_review" ? "#854d0e" : "#166534",
+                }}
+              >
+                {result.verdict.toUpperCase()} · Score {result.score}
               </div>
-              <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
-                <li>Contains urgent language in subject</li>
-                <li>Includes link asking for credentials</li>
-                <li>Sender domain mismatches display name</li>
-              </ul>
+              {result.reasons.length > 0 && (
+                <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
+                  {result.reasons.map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+              )}
               <details className="rounded-md border p-3 text-sm">
-                <summary className="cursor-pointer font-medium">Raw fields preview</summary>
-                <pre className="mt-2 whitespace-pre-wrap break-words text-xs">
-{JSON.stringify(form, null, 2)}
-                </pre>
+                <summary className="cursor-pointer font-medium">Indicators</summary>
+                <pre className="mt-2 whitespace-pre-wrap break-words text-xs">{JSON.stringify(result.indicators, null, 2)}</pre>
+              </details>
+              <details className="rounded-md border p-3 text-sm">
+                <summary className="cursor-pointer font-medium">PII Redactions</summary>
+                <pre className="mt-2 whitespace-pre-wrap break-words text-xs">{JSON.stringify(result.redactions, null, 2)}</pre>
+              </details>
+              <details className="rounded-md border p-3 text-sm">
+                <summary className="cursor-pointer font-medium">Redacted Body</summary>
+                <pre className="mt-2 whitespace-pre-wrap break-words text-xs">{result.redacted_body}</pre>
+              </details>
+              <details className="rounded-md border p-3 text-sm">
+                <summary className="cursor-pointer font-medium">Submitted Fields</summary>
+                <pre className="mt-2 whitespace-pre-wrap break-words text-xs">{JSON.stringify(form, null, 2)}</pre>
               </details>
             </div>
           )}
