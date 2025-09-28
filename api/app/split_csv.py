@@ -1,5 +1,8 @@
 import pandas as pd
 import os
+import csv
+import sys
+
 
 def split_csv_file(input_file_path, output_file_1, output_file_2):
     """
@@ -12,8 +15,9 @@ def split_csv_file(input_file_path, output_file_1, output_file_2):
     """
     try:
         # Read the CSV file
+        csv.field_size_limit(sys.maxsize)
         print(f"Reading CSV file: {input_file_path}")
-        df = pd.read_csv(input_file_path)
+        df = pd.read_csv(input_file_path, engine='python')
         
         # Get the total number of rows
         total_rows = len(df)
@@ -48,10 +52,10 @@ def split_csv_file(input_file_path, output_file_1, output_file_2):
 
 def main():
     # Define file paths
-    input_file = "../../datasets/phishing_email.csv"
-    output_file_1 = "../../datasets/phishing_email_1.csv"
-    output_file_2 = "../../datasets/phishing_email_2.csv"
-    
+    input_file = "../../datasets/TREC-07.csv"
+    output_file_1 = "../../datasets/TREC-07_1.csv"
+    output_file_2 = "../../datasets/TREC-07_2.csv"
+
     # Check if input file exists
     if not os.path.exists(input_file):
         print(f"Error: Input file '{input_file}' does not exist.")
