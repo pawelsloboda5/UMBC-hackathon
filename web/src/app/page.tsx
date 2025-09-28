@@ -1,5 +1,4 @@
-import Image from "next/image";
- 
+// removed unused Image import
 
 type Health = { status?: string; db?: boolean };
 
@@ -21,12 +20,7 @@ export default async function Home() {
   const apiOk = health.status === "ok";
   const dbOk = Boolean(health.db);
 
-  const badge = (ok: boolean) =>
-    `inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-      ok
-        ? "bg-green-100 text-green-700 border-green-200"
-        : "bg-red-100 text-red-700 border-red-200"
-    }`;
+  // removed unused badge helper
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 p-8">

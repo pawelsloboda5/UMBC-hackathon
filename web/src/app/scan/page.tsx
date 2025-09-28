@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import ScanForm from "@/components/ScanForm";
-import VerdictBadge from "@/components/VerdictBadge";
 import ScanStepper from "@/components/ScanStepper";
 import Phase1Card from "@/components/Phase1Card";
 import AIInsightsCard from "@/components/AIInsightsCard";
@@ -36,9 +35,12 @@ export default function ScanPage() {
   const LS_HISTORY = "scan:history";
   const HISTORY_EVENT = "scan:history:updated";
 
-  function getSenderDomain(indicators: any): string {
+  function getSenderDomain(indicators: unknown): string {
     try {
-      return indicators?.sender_domain ?? "";
+      if (!indicators || typeof indicators !== "object") return "";
+      const obj = indicators as Record<string, unknown>;
+      const val = obj["sender_domain"];
+      return typeof val === "string" ? val : "";
     } catch {
       return "";
     }
@@ -112,9 +114,12 @@ export default function ScanPage() {
   function parseErrorResponse(status: number, detail: unknown): string {
     if (typeof detail === "string") return `HTTP ${status}: ${detail}`;
     if (detail && typeof detail === "object") {
-      const anyDetail = detail as any;
-      const msg = anyDetail.error || anyDetail.detail || anyDetail.message;
-      return msg ? `HTTP ${status}: ${String(msg)}` : `HTTP ${status}: Request failed`;
+      const obj = detail as Record<string, unknown>;
+      const candidate = (obj["error"] ?? obj["detail"] ?? obj["message"]);
+      if (typeof candidate === "string") {
+        return `HTTP ${status}: ${candidate}`;
+      }
+      return `HTTP ${status}: Request failed`;
     }
     return `HTTP ${status}: Request failed`;
   }
@@ -209,7 +214,7 @@ export default function ScanPage() {
 
     if (aiData?.phase1) {
       try {
-        const domain = getSenderDomain(aiData.phase1?.indicators as any);
+        const domain = getSenderDomain(aiData.phase1?.indicators);
         const neighborsTop3: Neighbor[] = Array.isArray(aiData.neighbors) ? aiData.neighbors.slice(0, 3) : [];
         const persisted: PersistedScan = {
           input: values,

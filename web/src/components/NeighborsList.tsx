@@ -10,16 +10,7 @@ type NeighborsListProps = {
   error?: string | null;
 };
 
-function labelStyle(label: Neighbor["label"]) {
-  switch (label) {
-    case 1:
-      return "bg-rose-50 text-rose-800 border-rose-200";
-    case 0:
-      return "bg-emerald-50 text-emerald-800 border-emerald-200";
-    default:
-      return "bg-slate-50 text-slate-700 border-slate-200";
-  }
-}
+// removed unused labelStyle to satisfy linter
 
 export default function NeighborsList({ neighbors, className = "", loading = false, error }: NeighborsListProps) {
   const items = (neighbors ?? []).slice(0, 8);

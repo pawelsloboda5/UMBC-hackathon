@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 type Tab = {
@@ -22,7 +21,11 @@ export default function Header() {
   const handleClick = () => {
     // Create a subtle click sound effect using Web Audio API
     if (typeof window !== 'undefined') {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      type MaybeWebAudio = typeof window & { webkitAudioContext?: typeof AudioContext };
+      const w = window as MaybeWebAudio;
+      const Ctor = (w.AudioContext ?? w.webkitAudioContext);
+      if (!Ctor) return;
+      const audioContext = new Ctor();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       

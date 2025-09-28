@@ -55,32 +55,46 @@ export default function Phase1Card({ data, loading = false, error, className = "
               <div className="rounded-lg border p-3">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Sender domain</p>
                 <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {(data.indicators as any)?.sender_domain ?? "—"}
+                  {(() => {
+                    const val = (data.indicators as Record<string, unknown>)["sender_domain"];
+                    return typeof val === "string" && val.trim() ? val : "—";
+                  })()}
                 </p>
               </div>
               <div className="rounded-lg border p-3 h-40 overflow-hidden flex flex-col">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Link hosts</p>
                 <div className="mt-1 flex-1 overflow-y-auto pr-1 flex flex-wrap gap-1.5 content-start">
-                  {Array.isArray((data.indicators as any)?.link_hosts) && (data.indicators as any).link_hosts.length > 0 ? (
-                    (data.indicators as any).link_hosts.map((h: string, i: number) => (
+                  {(() => {
+                    const val = (data.indicators as Record<string, unknown>)["link_hosts"];
+                    const arr = Array.isArray(val) ? val.filter((v): v is string => typeof v === "string") : [];
+                    return arr.length > 0 ? (
+                      arr.map((h, i) => (
                       <span key={`${h}-${i}`} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
                         {h}
                       </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-slate-500">—</span>
-                  )}
+                      ))
+                    ) : (
+                      <span className="text-sm text-slate-500">—</span>
+                    );
+                  })()}
                 </div>
               </div>
               <div className="rounded-lg border p-3 sm:col-span-2">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Auth (DNS)</p>
                 <div className="mt-1 grid grid-cols-2 gap-2 md:grid-cols-4">
-                  <KeyVal label="has_mx" value={(data.indicators as any)?.has_mx} />
-                  <KeyVal label="spf_present" value={(data.indicators as any)?.spf_present} />
-                  <KeyVal label="dmarc_present" value={(data.indicators as any)?.dmarc_present} />
-                  {((data.indicators as any)?.dmarc_policy ?? null) && (
-                    <KeyVal label="dmarc_policy" value={(data.indicators as any)?.dmarc_policy} />
-                  )}
+                  {(() => {
+                    const ind = data.indicators as Record<string, unknown>;
+                    return (
+                      <>
+                        <KeyVal label="has_mx" value={ind["has_mx"]} />
+                        <KeyVal label="spf_present" value={ind["spf_present"]} />
+                        <KeyVal label="dmarc_present" value={ind["dmarc_present"]} />
+                        {ind["dmarc_policy"] != null && (
+                          <KeyVal label="dmarc_policy" value={ind["dmarc_policy"]} />
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

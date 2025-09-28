@@ -30,17 +30,7 @@ export function tokenize(text: string, offset: number = 0): Token[] {
   return tokens;
 }
 
-// LCS length of tokens by text
-function lcsLength(a: string[], b: string[]): number {
-  const m = a.length, n = b.length;
-  const dp = new Array(m + 1).fill(0).map(() => new Array(n + 1).fill(0));
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
-    }
-  }
-  return dp[m][n];
-}
+// removed unused lcsLength helper to satisfy linter
 
 // Simple Jaccard similarity of token sets
 function jaccard(a: Set<string>, b: Set<string>): number {
