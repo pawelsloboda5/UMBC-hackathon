@@ -35,6 +35,7 @@ export type AIAnalyzeOut = {
   neighbors: Neighbor[];
   phish_neighbors: Neighbor[];
   ai_verdict: Verdict;
+  ai_label: 0 | 1; // 1 = phishing, 0 = legit
   ai_score: number; // 0..10 higher = more likely phishing
   ai_reasons: string[]; // 3-5 concise bullets
 };
@@ -45,7 +46,7 @@ export type PersistedScan = {
   domain: string;
   phase1: ScanResponse;
   neighborsTop3: Neighbor[];
-  ai: Pick<AIAnalyzeOut, "ai_verdict" | "ai_score" | "ai_reasons">;
+  ai: Pick<AIAnalyzeOut, "ai_verdict" | "ai_label" | "ai_score" | "ai_reasons">;
   savedAt: number; // epoch ms
 };
 

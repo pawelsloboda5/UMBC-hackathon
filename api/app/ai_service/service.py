@@ -129,20 +129,18 @@ def _summarize_reasons_with_llm(
         return "yes" if bool(v) else "no"
 
     sender_domain = inds.get("sender_domain") or ""
+    # Provide only deterministic indicators (no previous verdict/score)
     phase1_summary = (
-        f"phase1_verdict={phase1.verdict} score={phase1.score} "
         f"auth(has_mx={_yn(inds.get('has_mx'))}, spf_present={_yn(inds.get('spf_present'))}, "
         f"dmarc_present={_yn(inds.get('dmarc_present'))}, dmarc_policy={inds.get('dmarc_policy', 'none')}) "
-        f"sender_domain={sender_domain} "
-        f"link_hosts={(inds.get('link_hosts') or [])[:5]} "
-        f"urgency={_yn(inds.get('urgency'))} creds_request={_yn(inds.get('creds_request'))}"
+        f"sender_domain={sender_domain}"
     )
 
     prompt = (
         "System: You are a security assistant. All retrieved neighbors are labeled phishing (label=1). "
-        "Use them as risk exemplars for retrieval-augmented reasoning. Weigh both deterministic flags and neighbor similarity.\n\n"
+        "Use them as risk exemplars for retrieval-augmented reasoning. Weigh deterministic auth flags and neighbor similarity.\n\n"
         "Task: Write 3–5 concise bullets explaining risk. Start each bullet with a tag in brackets "
-        "such as [URL], [AUTH], [URGENCY], [SIMILARITY], [CONTENT]. Keep each under 18 words.\n\n"
+        "such as [URL], [AUTH], [URGENCY], [SIMILARITY], [CONTENT]. Keep each under 18 words. Do not mention any prior verdict or percentage scores.\n\n"
         + "Email Subject:\n" + subject[:200]
         + "\nEmail Body (redacted):\n" + body[:800]
         + "\n\nDeterministic Summary:\n" + phase1_summary
@@ -250,11 +248,21 @@ def analyze_email(payload: EmailIn, phase1: ScanOut, *, neighbors_k: int = 8) ->
             *[r for r in phase1.reasons][:3],
         ]
         ai_verdict = phase1.verdict
+        ai_label = 1 if ai_verdict == "phishing" else 0
+        inds = phase1.indicators or {}
+        dmarc_policy = str(inds.get("dmarc_policy", "none"))
+        conclusion = (
+            f"Conclusion: **PHISH** — weak auth or risky patterns (DMARC: {dmarc_policy})"
+            if ai_label == 1
+            else f"Conclusion: **LEGIT** — insufficient phish signals and auth not risky (DMARC: {dmarc_policy})"
+        )
+        ai_reasons.append(conclusion)
         return AIAnalyzeOut(
             phase1=phase1,
             neighbors=neighbors,
             phish_neighbors=phish_neighbors,
             ai_verdict=ai_verdict,  # type: ignore[arg-type]
+            ai_label=ai_label,
             ai_score=phase1.score,  # fall back to deterministic score when AI unavailable
             ai_reasons=ai_reasons,
         )
@@ -275,13 +283,30 @@ def analyze_email(payload: EmailIn, phase1: ScanOut, *, neighbors_k: int = 8) ->
 
     phish_neighbors = [n for n in neighbors if n.label == 1]
 
+    # Decide verdict first (without exposing previous label to LLM prompt)
+    ai_verdict = _decide_ai_verdict(phase1, phish_neighbors)
+    ai_label = 1 if ai_verdict == "phishing" else 0
+
     ai_reasons = _summarize_reasons_with_llm(
         subject=payload.subject,
         body=phase1.redacted_body or payload.body,
         phase1=phase1,
         neighbors=neighbors,
     )
-    ai_verdict = _decide_ai_verdict(phase1, phish_neighbors)
+
+    # Append bold conclusion line summarizing final stance
+    inds = phase1.indicators or {}
+    dmarc_policy = str(inds.get("dmarc_policy", "none"))
+    # Keep local similarity context minimal; no percentage exposure in UI
+    if ai_label == 1:
+        why = "matches known phish and weak auth (DMARC: " + dmarc_policy + ")"
+        conclusion = f"Conclusion: **PHISH** — {why}"
+    else:
+        why = "no strong phish match and auth not clearly risky (DMARC: " + dmarc_policy + ")"
+        conclusion = f"Conclusion: **LEGIT** — {why}"
+    if conclusion not in ai_reasons:
+        ai_reasons.append(conclusion)
+
     ai_score = _compute_ai_score(phase1, neighbors)
 
     return AIAnalyzeOut(
@@ -289,6 +314,7 @@ def analyze_email(payload: EmailIn, phase1: ScanOut, *, neighbors_k: int = 8) ->
         neighbors=neighbors,
         phish_neighbors=phish_neighbors,
         ai_verdict=ai_verdict,  # type: ignore[arg-type]
+        ai_label=ai_label,
         ai_score=ai_score,
         ai_reasons=ai_reasons,
     )

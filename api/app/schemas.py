@@ -60,5 +60,6 @@ class AIAnalyzeOut(BaseModel):
     neighbors: List[NeighborOut]
     phish_neighbors: List[NeighborOut]
     ai_verdict: Literal["benign", "needs_review", "phishing"]
+    ai_label: Literal[0, 1]
     ai_score: int
     ai_reasons: List[str]

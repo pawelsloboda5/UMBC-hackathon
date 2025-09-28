@@ -162,12 +162,17 @@ function AnalyticsTab({
     window.setTimeout(() => setToast(null), 1500);
   };
   const getLabelBadge = (label: string, confidence: number) => {
-    const styles = {
+    // Support new labels (phish/legit) while keeping backward compatibility
+    const styles: Record<string, string> = {
+      phish: "bg-red-100 text-red-700 border-red-200",
       phishing: "bg-red-100 text-red-700 border-red-200",
       suspicious: "bg-yellow-100 text-yellow-700 border-yellow-200",
-      benign: "bg-green-100 text-green-700 border-green-200"
+      legit: "bg-green-100 text-green-700 border-green-200",
+      benign: "bg-green-100 text-green-700 border-green-200",
     };
-    return `inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${styles[label as keyof typeof styles] || styles.benign}`;
+    const key = (label || "").toLowerCase();
+    const cls = styles[key] || styles["legit"];
+    return `inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`;
   };
 
   const selectedEmailData = history.find(email => email.id === selectedEmail);
@@ -379,8 +384,8 @@ function AnalyticsTab({
       {/* Statistics Cards */}
       <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard title="Total Scans" value={history.length} color="blue" icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
-        <StatsCard title="Phishing Detected" value={history.filter(h => h.ai.ai_verdict === 'phishing').length} color="red" icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" /></svg>} />
-        <StatsCard title="Benign Emails" value={history.filter(h => h.ai.ai_verdict === 'benign').length} color="green" icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+        <StatsCard title="Phishing Detected" value={history.filter(h => (h.ai.ai_label ?? (h.ai.ai_verdict === 'phishing' ? 1 : 0)) === 1).length} color="red" icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" /></svg>} />
+        <StatsCard title="Benign Emails" value={history.filter(h => (h.ai.ai_label ?? (h.ai.ai_verdict === 'phishing' ? 1 : 0)) === 0).length} color="green" icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
       </section>
 
       {/* Main Content Grid */}
@@ -409,12 +414,15 @@ function AnalyticsTab({
                       </p>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
-                      <span className={getLabelBadge(email.ai.ai_verdict === 'needs_review' ? 'suspicious' : email.ai.ai_verdict, email.ai.ai_score / 10)}>
-                        {email.ai.ai_verdict}
-                      </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {(email.ai.ai_score * 10).toFixed(0)}%
-                      </span>
+                      {(() => {
+                        const effectiveLabel = (email.ai.ai_label ?? (email.ai.ai_verdict === 'phishing' ? 1 : 0));
+                        const label = effectiveLabel === 1 ? 'phish' : 'legit';
+                        return (
+                          <span className={getLabelBadge(label, email.ai.ai_score / 10)}>
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400">

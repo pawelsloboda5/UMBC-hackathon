@@ -46,7 +46,14 @@ export default function Header() {
       <div className="mx-auto max-w-5xl px-4">
         <nav className="flex items-center justify-between h-14" aria-label="Primary">
           <div className="flex items-center gap-2 font-semibold">
-            <span className="text-slate-900 dark:text-slate-100">UMBC Hackathon</span>
+            <img
+              src="/android-chrome-192x192.png"
+              alt="UMBC Logo"
+              width={64}
+              height={64}
+              style={{ marginRight: 8, borderRadius: 6 }}
+            />
+            <span className="text-slate-900 dark:text-slate-100">CyberCane</span>
           </div>
           <ul className="flex items-center gap-1">
             {tabs.map((tab) => {

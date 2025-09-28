@@ -40,9 +40,23 @@ export default function AIInsightsCard({ data, loading = false, error, className
           {data.ai_verdict !== "benign" && <VerdictBadge aiVerdict={data.ai_verdict} />}
           {Array.isArray(data.ai_reasons) && data.ai_reasons.length > 0 && (
             <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
-              {data.ai_reasons.slice(0, 5).map((r, i) => (
-                <li key={i} className="line-clamp-2" title={r}>{r}</li>
-              ))}
+              {(() => {
+                const reasons = data.ai_reasons;
+                const items = reasons.length <= 5 ? reasons : [...reasons.slice(0, 4), reasons[reasons.length - 1]];
+                return items.map((r, i) => {
+                const isConclusion = /^Conclusion:\s+\*\*(PHISH|LEGIT)\*\*/i.test(r);
+                return (
+                  <li key={i} className={`line-clamp-2 ${isConclusion ? "font-semibold" : ""}`} title={r}>
+                    {/* render minimal markdown for **bold** only */}
+                    {isConclusion ? (
+                      <span dangerouslySetInnerHTML={{ __html: r.replace(/\*\*(.*?)\*\*/g, '<strong>$1<\/strong>') }} />
+                    ) : (
+                      r
+                    )}
+                  </li>
+                );
+              });
+              })()}
             </ul>
           )}
         </div>

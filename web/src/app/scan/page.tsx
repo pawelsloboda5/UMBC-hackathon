@@ -216,7 +216,7 @@ export default function ScanPage() {
           domain,
           phase1: aiData.phase1,
           neighborsTop3,
-          ai: { ai_verdict: aiData.ai_verdict, ai_score: aiData.ai_score, ai_reasons: aiData.ai_reasons },
+          ai: { ai_verdict: aiData.ai_verdict, ai_label: aiData.ai_label, ai_score: aiData.ai_score, ai_reasons: aiData.ai_reasons },
           savedAt: Date.now(),
         };
         localStorage.setItem(LS_KEY, JSON.stringify(persisted));
@@ -267,6 +267,7 @@ export default function ScanPage() {
         neighbors: saved.neighborsTop3,
         phish_neighbors: [],
         ai_verdict: saved.ai.ai_verdict,
+        ai_label: saved.ai.ai_label,
         ai_score: saved.ai.ai_score,
         ai_reasons: saved.ai.ai_reasons,
       });
