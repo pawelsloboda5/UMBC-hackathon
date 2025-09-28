@@ -45,17 +45,3 @@ class ScanOut(BaseModel):
     redactions: RedactionsOut
     redacted_body: str
 
-
-class NeighborOut(BaseModel):
-    id: int
-    label: Optional[int] = None
-    subject: Optional[str] = None
-    similarity: float
-
-
-class AIAnalyzeOut(BaseModel):
-    phase1: ScanOut
-    neighbors: List[NeighborOut]
-    phish_neighbors: List[NeighborOut]
-    ai_verdict: Literal["benign", "needs_review", "phishing"]
-    ai_reasons: List[str]
