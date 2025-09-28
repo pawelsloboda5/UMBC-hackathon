@@ -9,4 +9,19 @@ export type ScanResponse = {
   redacted_body: string;
 };
 
+export type Neighbor = {
+  id: number;
+  label: 0 | 1 | null;
+  subject?: string;
+  similarity: number; // 0..1
+};
+
+export type AIAnalyzeOut = {
+  phase1: ScanResponse;
+  neighbors: Neighbor[];
+  phish_neighbors: Neighbor[];
+  ai_verdict: Verdict;
+  ai_reasons: string[]; // 3-5 concise bullets
+};
+
 
