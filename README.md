@@ -27,7 +27,7 @@ A system where rules and AI work together: rules for speed and clarity, AI for n
 ## 📸 Screenshots
 
 ### 1. Scanning a Suspicious Email  
-Phase-1 flags missing MX + DMARC. AI confirms phishing with high similarity.  
+Phase-1 flags missing MX + DMARC. AI confirms phishing with high similarity. Automated runs through all CSV rows.   
 ![Scan Example 1](/web/public/pic1.png)  
 *Why it matters: Users immediately see both the technical red flags and the AI’s verdict, building trust in the system.*
 
@@ -41,7 +41,7 @@ CyberCane catches mismatched domains (navyfederal.org vs mynfcu.org) and explain
 ---
 
 ### 3. Nearest Neighbors + PII Redaction  
-Emails are embedded and compared with known phish. All PII (emails, phones, CCs) are safely redacted.  
+Emails are embedded and compared with known phish. All PII (emails, phones, CCs) are safely redacted. 100k phishing emails labeled. 
 ![Scan Example 3](/web/public/pic3.png)  
 *Why it matters: Similarity search makes detection smarter over time, while redaction ensures privacy-first AI calls.*
 
