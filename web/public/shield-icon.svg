@@ -1,0 +1,40 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#14B8A6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Shield shape -->
+  <path d="M16 2L28 6V16C28 22.6274 22.6274 28 16 28C9.37258 28 4 22.6274 4 16V6L16 2Z" 
+        fill="url(#shieldGradient)" 
+        stroke="white" 
+        stroke-width="1.5"/>
+  
+  <!-- Human silhouette -->
+  <path d="M8 12C8 10.8954 8.89543 10 10 10H12C13.1046 10 14 10.8954 14 12V18C14 19.1046 13.1046 20 12 20H10C8.89543 20 8 19.1046 8 18V12Z" 
+        fill="white"/>
+  <circle cx="11" cy="8" r="2" fill="white"/>
+  
+  <!-- Brain/Condition symbol -->
+  <g transform="translate(9, 6)">
+    <circle cx="2" cy="2" r="1" fill="white"/>
+    <circle cx="0.5" cy="1" r="0.3" fill="white"/>
+    <circle cx="3.5" cy="1" r="0.3" fill="white"/>
+    <circle cx="0.5" cy="3" r="0.3" fill="white"/>
+    <circle cx="3.5" cy="3" r="0.3" fill="white"/>
+    <line x1="2" y1="2" x2="0.5" y2="1" stroke="white" stroke-width="0.2"/>
+    <line x1="2" y1="2" x2="3.5" y2="1" stroke="white" stroke-width="0.2"/>
+    <line x1="2" y1="2" x2="0.5" y2="3" stroke="white" stroke-width="0.2"/>
+    <line x1="2" y1="2" x2="3.5" y2="3" stroke="white" stroke-width="0.2"/>
+  </g>
+  
+  <!-- Medical cross -->
+  <rect x="20" y="8" width="2" height="6" fill="white"/>
+  <rect x="18" y="10" width="6" height="2" fill="white"/>
+  
+  <!-- Walking cane -->
+  <path d="M22 18L24 16L26 18" stroke="white" stroke-width="1.5" fill="none"/>
+  <circle cx="26" cy="18" r="0.5" fill="white"/>
+</svg>

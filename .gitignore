@@ -6,7 +6,7 @@ web/.swc/
 web/.cache/
 web/out/
 web/.vercel/
-
+docker-compose.yml
 # Python
 api/.venv/
 api/**/__pycache__/
