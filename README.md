@@ -1,29 +1,46 @@
-# 🛡️ CyberCane – Smarter Phishing Detection
+# 🚀 CyberCane Workflow
 
-> **Stop phishing before it stops you.**  
-> CyberCane is an AI-powered email security platform that combines **deterministic rules**, **vector search**, and **LLM reasoning** to detect and explain phishing attempts in real-time.
+## 1. Seamless Gmail Integration  
+CyberCane securely connects to your Gmail soon for now can automatically go through thousands of phishing emails in a csv no manual upload, no friction.  
+
+## 2. Phase-1: Deterministic Defense  
+Every email is first scanned with traditional rule-based checks:  
+- DNS lookups  
+- SPF/DMARC alignment  
+- Urgency keyword spotting  
+- Suspicious URL detection  
+
+This acts as a **fast, deterministic firewall**.  
+
+## 3. Phase-2: AI-Powered Judgment with RAG  
+The email is embedded and compared against our **corpus of 100,000+ labeled phishing emails** using a Retrieval-Augmented Generation (RAG) pipeline.  
+
+- If the email closely matches known attacks, we flag it.  
+- An LLM provides **contextual reasoning**, explaining how this email aligns with real phishing attempts.  
+
+## 4. Human-in-the-Loop Assurance  
+For low-confidence cases, CyberCane escalates to a **human reviewer** directly inside the workflow.  
+
+- They can block the sender, trigger alerts, or safely ignore.  
+- Each decision feeds back into the system, strengthening the AI over time.  
+
+## 5. Explainability + Data Flywheel  
+Users don’t just see *“Phish”* or *“Safe.”* They see **why**:  
+- Mismatched domains  
+- Threatening language  
+- Nearest-neighbor examples from the phishing corpus  
+
+Every flagged or confirmed case expands the dataset, creating an **automatic data flywheel** where the system continuously improves.  
 
 ---
 
-## 🌟 The Story
-
-Every day, millions of phishing emails land in inboxes. Some are crude, but others look indistinguishably real.  
-We asked ourselves: **what if we could make inbox security both *explainable* and *AI-smart***?
-
-That’s how **CyberCane** was born.  
-A system where rules and AI work together: rules for speed and clarity, AI for nuance and context.
-
----
-
-## 🚀 How It Works
-
-1. **Connect Gmail** → CyberCane securely fetches your latest 10 emails.  
-2. **Phase-1 Deterministic Scan** → DNS, SPF/DMARC, urgency keywords, suspicious URLs.  
-3. **Phase-2 AI Insights** → Embeds the email, finds similar known phish in our DB, and asks an LLM to judge.  
-4. **Explainability First** → You don’t just see *“Phish”* or *“Safe”*. You see **why**.
-
----
-
+## 🎯 Judge Takeaway  
+CyberCane isn’t just an AI spam filter.  
+It’s a **closed-loop, explainable security platform** that combines:  
+- Deterministic checks  
+- A massive phishing knowledge base  
+- Adaptive AI  
+- Human oversight  
 ## 📸 Screenshots
 
 ### 1. Scanning a Suspicious Email  
