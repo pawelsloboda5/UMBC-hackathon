@@ -62,3 +62,10 @@ def redact(text: str) -> Tuple[str, Dict[str, int]]:
 
     return red, counts
 
+
+def redact_text(text: str | None) -> str:
+    """Convenience wrapper that returns only the redacted string for lightweight use cases."""
+    if not text:
+        return ""
+    redacted, _ = redact(text)
+    return redacted

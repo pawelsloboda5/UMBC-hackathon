@@ -50,7 +50,9 @@ class NeighborOut(BaseModel):
     id: int
     label: Optional[int] = None
     subject: Optional[str] = None
+    body: Optional[str] = None
     similarity: float
+    redactions: Optional[RedactionsOut] = None
 
 
 class AIAnalyzeOut(BaseModel):
@@ -58,4 +60,5 @@ class AIAnalyzeOut(BaseModel):
     neighbors: List[NeighborOut]
     phish_neighbors: List[NeighborOut]
     ai_verdict: Literal["benign", "needs_review", "phishing"]
+    ai_score: int
     ai_reasons: List[str]

@@ -138,7 +138,9 @@ export default function ScanPage() {
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div className="flex items-center gap-3">
             <VerdictBadge phase1Verdict={phase1?.verdict} aiVerdict={ai?.ai_verdict} className="text-base" />
-            <span className="text-sm text-slate-500">{phase1 ? `Score ${phase1.score}` : "Awaiting input"}</span>
+            <span className="text-sm text-slate-500">
+              {ai ? `AI Score ${ai.ai_score}` : phase1 ? `Score ${phase1.score}` : "Awaiting input"}
+            </span>
           </div>
           <ScanStepper step={step} loadingPhase1={loadingPhase1} loadingAI={loadingAI} />
         </div>

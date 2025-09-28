@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import type { Neighbor } from "@/types/scan";
 
 type NeighborsListProps = {
@@ -25,6 +26,11 @@ export default function NeighborsList({ neighbors, className = "", loading = fal
   const phish = items.filter((n) => n.label === 1);
   const topSimilarity = items[0]?.similarity ?? 0;
   const avgTop3Phish = phish.slice(0, 3).reduce((sum, n) => sum + n.similarity, 0) / Math.max(1, Math.min(3, phish.length));
+  const [expanded, setExpanded] = React.useState<Record<number, boolean>>({});
+
+  function toggle(id: number) {
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
 
   return (
     <section className={`rounded-2xl border bg-white/60 dark:bg-slate-900/40 backdrop-blur p-6 shadow-sm ${className}`} aria-labelledby="neighbors-title">
@@ -58,30 +64,52 @@ export default function NeighborsList({ neighbors, className = "", loading = fal
           </div>
 
           <ul role="list" className="space-y-2">
-            {items.map((n) => (
-              <li key={n.id} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="h-2 w-full rounded-full bg-slate-200">
-                      <div
-                        className={`h-2 rounded-full ${n.label === 1 ? "bg-rose-500" : n.label === 0 ? "bg-emerald-500" : "bg-slate-400"}`}
-                        style={{ width: `${Math.max(0, Math.min(1, n.similarity)) * 100}%` }}
-                        aria-hidden
-                      />
+            {items.map((n) => {
+              const isExpanded = !!expanded[n.id];
+              const subjectText = n.subject && n.subject.trim().length > 0 ? n.subject : "(no subject)";
+              const detailId = `neighbor-${n.id}-details`;
+              const displayBody = n.body && n.body.length > 1200 ? `${n.body.slice(0, 1200)}…` : n.body;
+              return (
+                <li key={n.id} className="rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="h-2 w-full rounded-full bg-slate-200">
+                        <div
+                          className={`h-2 rounded-full ${n.label === 1 ? "bg-rose-500" : n.label === 0 ? "bg-emerald-500" : "bg-slate-400"}`}
+                          style={{ width: `${Math.max(0, Math.min(1, n.similarity)) * 100}%` }}
+                          aria-hidden
+                        />
+                      </div>
+                      <p className="mt-1 truncate text-sm text-slate-900 dark:text-slate-100" title={subjectText}>
+                        {subjectText}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => toggle(n.id)}
+                        className="mt-2 text-left text-sm text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                        aria-expanded={isExpanded}
+                        aria-controls={detailId}
+                      >
+                        {isExpanded ? "Hide email context" : "View email context"}
+                      </button>
+                      {isExpanded && (
+                        <div id={detailId} className="mt-2 space-y-2">
+                          <div className="rounded-md border bg-white/70 px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 whitespace-pre-wrap">
+                            {displayBody && displayBody.trim().length > 0 ? displayBody : "No body available"}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <p className="mt-1 truncate text-sm text-slate-900 dark:text-slate-100" title={n.subject ?? "(no subject)"}>
-                      {n.subject ?? "(no subject)"}
-                    </p>
+                    <div className="shrink-0 text-right">
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${labelStyle(n.label)}`}>
+                        {n.label === 1 ? "phish" : n.label === 0 ? "legit" : "unknown"}
+                      </span>
+                      <div className="text-xs text-slate-500">{n.similarity.toFixed(2)}</div>
+                    </div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${labelStyle(n.label)}`}>
-                      {n.label === 1 ? "phish" : n.label === 0 ? "legit" : "unknown"}
-                    </span>
-                    <div className="text-xs text-slate-500">{n.similarity.toFixed(2)}</div>
-                  </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

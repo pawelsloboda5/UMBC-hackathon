@@ -7,7 +7,8 @@ import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
 
 from app.db import engine
-from app.schemas import EmailIn, ScanOut, AIAnalyzeOut, NeighborOut
+from app.schemas import EmailIn, ScanOut, AIAnalyzeOut, NeighborOut, RedactionsOut
+from app.pipeline.pii import redact
 
 
 def _combine_subject_body(subject: str | None, body: str | None) -> str:
@@ -47,6 +48,8 @@ def _nearest_neighbors(vec: List[float], limit: int = 8) -> List[NeighborOut]:
         SELECT id,
                label,
                subject,
+               body,
+               redacted_body,
                1 - (doc_emb <-> :q) AS cosine_similarity
         FROM messages
         WHERE doc_emb IS NOT NULL
@@ -57,16 +60,23 @@ def _nearest_neighbors(vec: List[float], limit: int = 8) -> List[NeighborOut]:
         sa.bindparam("q", type_=Vector(1536)),
     )
 
-    rows: List[Tuple[int, int | None, str | None, float]] = []
+    rows: List[Tuple[int, int | None, str | None, str | None, str | None, float]] = []
     with engine.connect() as conn:
         # psycopg binds arrays via pgvector; ensure limit is int
         result = conn.execute(stmt, {"q": vec, "lim": int(limit)})
         rows = list(result.fetchall())
 
     neighbors: List[NeighborOut] = []
-    for _id, label, subject, sim in rows:
+    for _id, label, subject, body, redacted_body, sim in rows:
+        body_value = redacted_body or body
         neighbors.append(
-            NeighborOut(id=int(_id), label=(int(label) if label is not None else None), subject=subject, similarity=float(sim))
+            NeighborOut(
+                id=int(_id),
+                label=(int(label) if label is not None else None),
+                subject=subject,
+                body=body_value,
+                similarity=float(sim),
+            )
         )
     return neighbors
 
@@ -101,7 +111,7 @@ def _summarize_reasons_with_llm(
         ]
 
     neighbor_lines = []
-    for n in neighbors[:5]:
+    for n in neighbors[:8]:
         lab = "phish" if (n.label == 1) else ("legit" if n.label == 0 else "unknown")
         neighbor_lines.append(f"id={n.id} label={lab} sim={n.similarity:.2f} subj={ (n.subject or '')[:60] }")
 
@@ -169,6 +179,38 @@ def _decide_ai_verdict(phase1: ScanOut, phish_neighbors: List[NeighborOut]) -> s
     return phase1.verdict
 
 
+def _compute_ai_score(phase1: ScanOut, neighbors: List[NeighborOut]) -> int:
+    """
+    Produce a 0..10 AI score where higher means more likely phishing.
+    Derived from nearest-neighbor cosine similarities (top-8) and Phase‑1 verdict.
+    - Emphasize phish-labeled neighbors (top and avg top‑3)
+    - Add gentle boost from deterministic verdict
+    """
+    phish_neighbors = [n for n in neighbors if n.label == 1]
+
+    top_overall = max((n.similarity for n in neighbors), default=0.0)
+    top_phish = max((n.similarity for n in phish_neighbors), default=0.0)
+    avg_top3_phish = (
+        sum(sorted((n.similarity for n in phish_neighbors), reverse=True)[:3])
+        / max(1, min(3, len(phish_neighbors)))
+        if phish_neighbors
+        else 0.0
+    )
+
+    # Base signal from neighbors: prefer phish-labeled, fallback to overall
+    if phish_neighbors:
+        neighbor_signal = 0.65 * top_phish + 0.35 * avg_top3_phish
+    else:
+        neighbor_signal = 0.5 * top_overall
+
+    # Deterministic influence
+    phase1_signal = 1.0 if phase1.verdict == "phishing" else (0.6 if phase1.verdict == "needs_review" else 0.0)
+
+    combined = max(neighbor_signal, 0.7 * neighbor_signal + 0.3 * phase1_signal)
+    combined = max(0.0, min(1.0, combined))
+    return int(round(combined * 10))
+
+
 def analyze_email(payload: EmailIn, phase1: ScanOut, *, neighbors_k: int = 8) -> AIAnalyzeOut:
     """
     Perform simple RAG analysis: embed input subject+body, retrieve nearest doc_emb neighbors,
@@ -192,10 +234,24 @@ def analyze_email(payload: EmailIn, phase1: ScanOut, *, neighbors_k: int = 8) ->
             neighbors=neighbors,
             phish_neighbors=phish_neighbors,
             ai_verdict=ai_verdict,  # type: ignore[arg-type]
+            ai_score=phase1.score,  # fall back to deterministic score when AI unavailable
             ai_reasons=ai_reasons,
         )
 
     neighbors = _nearest_neighbors(vec, limit=neighbors_k)
+    for neighbor in neighbors:
+        # Redact both subject and body to avoid exposing raw PII from dataset rows
+        redacted_subject, subject_counts = redact(neighbor.subject or "")
+        redacted_body, body_counts = redact(neighbor.body or "")
+
+        # Merge counts across subject and body
+        merged_keys = set(subject_counts.keys()) | set(body_counts.keys())
+        merged_counts: dict[str, int] = {k: int(subject_counts.get(k, 0)) + int(body_counts.get(k, 0)) for k in merged_keys}
+
+        neighbor.subject = redacted_subject
+        neighbor.body = redacted_body
+        neighbor.redactions = RedactionsOut(types=merged_counts, count=sum(merged_counts.values()))
+
     phish_neighbors = [n for n in neighbors if n.label == 1]
 
     ai_reasons = _summarize_reasons_with_llm(
@@ -205,12 +261,14 @@ def analyze_email(payload: EmailIn, phase1: ScanOut, *, neighbors_k: int = 8) ->
         neighbors=neighbors,
     )
     ai_verdict = _decide_ai_verdict(phase1, phish_neighbors)
+    ai_score = _compute_ai_score(phase1, neighbors)
 
     return AIAnalyzeOut(
         phase1=phase1,
         neighbors=neighbors,
         phish_neighbors=phish_neighbors,
         ai_verdict=ai_verdict,  # type: ignore[arg-type]
+        ai_score=ai_score,
         ai_reasons=ai_reasons,
     )
 

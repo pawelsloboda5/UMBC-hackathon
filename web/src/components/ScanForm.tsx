@@ -70,20 +70,6 @@ export default function ScanForm({ onSubmit, loading = false, initial, className
         {errors.sender && <InlineError id="error-from">{errors.sender}</InlineError>}
       </Field>
 
-      <Field label="To" htmlFor="to" error={errors.receiver}>
-        <input
-          id="to"
-          type="email"
-          value={receiver}
-          onChange={(e) => setReceiver(e.target.value)}
-          className="w-full rounded-md border px-3 py-2 bg-white dark:bg-slate-900"
-          placeholder="recipient@example.com (optional)"
-          aria-invalid={!!errors.receiver}
-          aria-describedby={errors.receiver ? "error-to" : undefined}
-        />
-        {errors.receiver && <InlineError id="error-to">{errors.receiver}</InlineError>}
-      </Field>
-
       <Field label="Subject" htmlFor="subject" error={errors.subject} required>
         <input
           id="subject"

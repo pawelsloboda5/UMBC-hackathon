@@ -13,7 +13,12 @@ export type Neighbor = {
   id: number;
   label: 0 | 1 | null;
   subject?: string;
+  body?: string;
   similarity: number; // 0..1
+  redactions?: {
+    types: Record<string, number>;
+    count: number;
+  };
 };
 
 export type AIAnalyzeOut = {
@@ -21,6 +26,7 @@ export type AIAnalyzeOut = {
   neighbors: Neighbor[];
   phish_neighbors: Neighbor[];
   ai_verdict: Verdict;
+  ai_score: number; // 0..10 higher = more likely phishing
   ai_reasons: string[]; // 3-5 concise bullets
 };
 
