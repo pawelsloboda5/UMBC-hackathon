@@ -27,6 +27,7 @@ export default function ScanPage() {
   const [resetSignal, setResetSignal] = React.useState<number>(0);
   const [csvQueue, setCsvQueue] = React.useState<EmailIn[] | null>(null);
   const [csvCountdown, setCsvCountdown] = React.useState<number>(0);
+  const [csvTotals, setCsvTotals] = React.useState<{ types: Record<string, number>; count: number } | null>(null);
 
   const abortRefs = React.useRef<{ scan?: AbortController; ai?: AbortController }>({});
   const lastRawBody = React.useRef<string>("");
@@ -136,7 +137,7 @@ export default function ScanPage() {
     return (await res.json()) as T;
   }
 
-  async function analyzeOnce(values: EmailIn) {
+  async function analyzeOnce(values: EmailIn): Promise<ScanResponse | undefined> {
     if (envMissing) return;
 
     // Abort any in-flight requests
@@ -204,7 +205,7 @@ export default function ScanPage() {
       });
 
     setStep(2);
-    const [, aiData] = await Promise.all([scanPromise, aiPromise]);
+    const [scanData, aiData] = await Promise.all([scanPromise, aiPromise]);
 
     if (aiData?.phase1) {
       try {
@@ -222,6 +223,9 @@ export default function ScanPage() {
         appendHistory(persisted);
       } catch {}
     }
+
+    const effectivePhase1: ScanResponse | undefined = aiData?.phase1 ?? scanData;
+    return effectivePhase1;
   }
 
   function handleSubmit(values: { sender: string; receiver?: string; subject: string; body: string; url: 0 | 1 }) {
@@ -240,6 +244,7 @@ export default function ScanPage() {
     setInitialForm({});
     lastRawBody.current = "";
     setResetSignal((n) => n + 1);
+    setCsvTotals(null);
   }
 
   React.useEffect(() => {
@@ -281,7 +286,18 @@ export default function ScanPage() {
       const next = csvQueue[0];
       // Reflect current row in the form
       setInitialForm(next);
-      await analyzeOnce(next);
+      const phase1Result = await analyzeOnce(next);
+      if (phase1Result?.redactions) {
+        const red = phase1Result.redactions;
+        setCsvTotals((prev) => {
+          const mergedTypes: Record<string, number> = { ...(prev?.types ?? {}) };
+          for (const [k, v] of Object.entries(red.types || {})) {
+            mergedTypes[k] = (mergedTypes[k] ?? 0) + (typeof v === "number" ? v : 0);
+          }
+          const totalCount = (prev?.count ?? 0) + (typeof red.count === "number" ? red.count : 0);
+          return { types: mergedTypes, count: totalCount };
+        });
+      }
       // Reset form between rows for clarity
       setResetSignal((n) => n + 1);
       // 8-second countdown before proceeding to the next row (was 5s)
@@ -332,6 +348,8 @@ export default function ScanPage() {
                   setCsvQueue(rows);
                   // Show first row in the form immediately
                   setInitialForm(rows[0]);
+                  // Reset running PII totals for this CSV session
+                  setCsvTotals({ types: {}, count: 0 });
                 }
               }}
             />
@@ -348,7 +366,7 @@ export default function ScanPage() {
           <NeighborsList neighbors={ai?.neighbors ?? null} loading={loadingAI && !ai} error={aiError} className="lg:col-span-2" />
 
           <RedactionsPanel
-            redactions={(ai?.phase1 ?? phase1 ?? null)?.redactions ?? null}
+            redactions={csvTotals ?? (ai?.phase1 ?? phase1 ?? null)?.redactions ?? null}
             redactedBody={(ai?.phase1 ?? phase1 ?? null)?.redacted_body ?? null}
             rawBody={lastRawBody.current}
             loading={loadingPhase1 && !phase1}
