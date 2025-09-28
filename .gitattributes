@@ -10,3 +10,4 @@
 *.css       text eol=lf
 *.sql       text eol=lf
 Dockerfile  text eol=lf
+*.csv filter=lfs diff=lfs merge=lfs -text
