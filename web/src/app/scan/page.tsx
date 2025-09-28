@@ -149,12 +149,14 @@ export default function ScanPage() {
     setPhase1Error(null);
     setAIError(null);
     setLoadingPhase1(true);
-    setLoadingAI(false);
+    setLoadingAI(true);
     lastRawBody.current = values.body;
 
-    // Progressive UX: call /scan first, then /ai/analyze
     const scanController = new AbortController();
+    const aiController = new AbortController();
     abortRefs.current.scan = scanController;
+    abortRefs.current.ai = aiController;
+
     const payload = JSON.stringify({
       sender: values.sender,
       receiver: values.receiver,
@@ -163,6 +165,7 @@ export default function ScanPage() {
       url: values.url,
     });
 
+    // Fire both requests concurrently for faster CSV processing
     const scanPromise = fetchJson<ScanResponse>(`${apiBase}/scan`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -174,21 +177,14 @@ export default function ScanPage() {
         return data;
       })
       .catch((err) => {
-        if (scanController.signal.aborted) return undefined;
-        setPhase1Error(String(err));
+        if (!scanController.signal.aborted) setPhase1Error(String(err));
         return undefined;
       })
       .finally(() => {
-        if (scanController.signal.aborted) return;
-        setLoadingPhase1(false);
+        if (!scanController.signal.aborted) setLoadingPhase1(false);
       });
 
-    const scanData = await scanPromise;
-    setStep(2);
-    const aiController = new AbortController();
-    abortRefs.current.ai = aiController;
-    setLoadingAI(true);
-    const aiData = await fetchJson<AIAnalyzeOut>(`${apiBase}/ai/analyze`, {
+    const aiPromise = fetchJson<AIAnalyzeOut>(`${apiBase}/ai/analyze`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: payload,
@@ -200,14 +196,15 @@ export default function ScanPage() {
         return data;
       })
       .catch((err) => {
-        if (aiController.signal.aborted) return undefined;
-        setAIError(String(err));
+        if (!aiController.signal.aborted) setAIError(String(err));
         return undefined;
       })
       .finally(() => {
-        if (aiController.signal.aborted) return;
-        setLoadingAI(false);
+        if (!aiController.signal.aborted) setLoadingAI(false);
       });
+
+    setStep(2);
+    const [, aiData] = await Promise.all([scanPromise, aiPromise]);
 
     if (aiData?.phase1) {
       try {
@@ -274,32 +271,31 @@ export default function ScanPage() {
     } catch {}
   }, []);
 
-  // CSV sequential processing with 5-second delay and UI countdown
+  // CSV processing: handle a single row per effect run to avoid stale closures.
   React.useEffect(() => {
     if (!csvQueue || csvQueue.length === 0) return;
 
     let cancelled = false;
 
-    const run = async () => {
-      while (!cancelled && csvQueue.length > 0) {
-        const next = csvQueue[0];
-        // Reflect current row in the form
-        setInitialForm(next);
-        await analyzeOnce(next);
-        // Reset form between rows for clarity
-        setResetSignal((n) => n + 1);
-        // 5-second countdown
-        for (let s = 5; s > 0 && !cancelled; s--) {
-          setCsvCountdown(s);
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-        setCsvCountdown(0);
-        setCsvQueue((q) => (q ? q.slice(1) : null));
+    const runOne = async () => {
+      const next = csvQueue[0];
+      // Reflect current row in the form
+      setInitialForm(next);
+      await analyzeOnce(next);
+      // Reset form between rows for clarity
+      setResetSignal((n) => n + 1);
+      // 5-second countdown before proceeding to the next row
+      for (let s = 5; s > 0 && !cancelled; s--) {
+        setCsvCountdown(s);
+        await new Promise((r) => setTimeout(r, 1000));
       }
-      if (!cancelled) setCsvQueue(null);
+      setCsvCountdown(0);
+      if (!cancelled) {
+        setCsvQueue((q) => (q && q.length > 1 ? q.slice(1) : null));
+      }
     };
 
-    run();
+    runOne();
     return () => {
       cancelled = true;
     };
@@ -310,7 +306,9 @@ export default function ScanPage() {
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div className="flex items-center gap-3">
-            <VerdictBadge phase1Verdict={phase1?.verdict} aiVerdict={ai?.ai_verdict} className="text-base" />
+            {ai?.ai_verdict === "benign" ? null : (
+              <VerdictBadge phase1Verdict={phase1?.verdict} aiVerdict={ai?.ai_verdict} className="text-base" />
+            )}
           </div>
           <ScanStepper step={step} loadingPhase1={loadingPhase1} loadingAI={loadingAI} />
         </div>
@@ -347,12 +345,7 @@ export default function ScanPage() {
           </section>
 
           <div className="space-y-6">
-            {(() => {
-              const topSimilarity = ai?.neighbors?.[0]?.similarity ?? 0;
-              const neighborBoost = Math.ceil(Math.max(0, Math.min(1, topSimilarity)) * 10);
-              const adjustedPhase1 = phase1 ? { ...phase1, score: Math.min(10, phase1.score + neighborBoost) } : null;
-              return <Phase1Card data={adjustedPhase1} loading={loadingPhase1} error={phase1Error} />;
-            })()}
+            <Phase1Card data={phase1} loading={loadingPhase1} error={phase1Error} />
             <AIInsightsCard data={ai ? { ai_verdict: ai.ai_verdict, ai_reasons: ai.ai_reasons } : null} loading={loadingAI} error={aiError} />
           </div>
 

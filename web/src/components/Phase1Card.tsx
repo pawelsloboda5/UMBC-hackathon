@@ -1,6 +1,5 @@
 "use client";
 
-import ProgressBar from "./ProgressBar";
 import type { ScanResponse } from "@/types/scan";
 
 type Phase1CardProps = {
@@ -36,8 +35,6 @@ export default function Phase1Card({ data, loading = false, error, className = "
 
       {data && !loading && !error && (
         <div className="space-y-4">
-          <ProgressBar label="Score" value={data.score} max={10} color={data.verdict === "phishing" ? "red" : data.verdict === "needs_review" ? "yellow" : "green"} />
-
           {data.reasons?.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold mb-2">Reasons</h3>

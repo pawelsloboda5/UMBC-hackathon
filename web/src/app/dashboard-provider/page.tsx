@@ -6,6 +6,8 @@ import StatsCard from "@/components/StatsCard";
 import ActivityFeed from "@/components/ActivityFeed";
 import ProgressBar from "@/components/ProgressBar";
 import StatusBadge from "@/components/StatusBadge";
+import HighlightedText from "@/components/HighlightedText";
+import { computeHighlightRanges } from "@/utils/similarity";
 
 type Health = { status?: string; db?: boolean };
 
@@ -139,6 +141,7 @@ function AnalyticsTab({
   dbOk: boolean;
 }) {
   const [toast, setToast] = useState<string | null>(null);
+  const [showHighlights, setShowHighlights] = useState<boolean>(true);
 
   const handleBlockAndAlert = () => {
     if (!selectedEmail) return;
@@ -153,6 +156,11 @@ function AnalyticsTab({
     setToast("Alert sent to the receiver email");
     window.setTimeout(() => setToast(null), 2500);
   };
+  const handleIgnore = () => {
+    setSelectedEmail(null);
+    setToast("Ignored • kept in history");
+    window.setTimeout(() => setToast(null), 1500);
+  };
   const getLabelBadge = (label: string, confidence: number) => {
     const styles = {
       phishing: "bg-red-100 text-red-700 border-red-200",
@@ -163,12 +171,23 @@ function AnalyticsTab({
   };
 
   const selectedEmailData = history.find(email => email.id === selectedEmail);
+  const topNeighbor = React.useMemo(() => {
+    if (selectedEmailData && selectedEmailData.neighborsTop3 && selectedEmailData.neighborsTop3.length > 0) {
+      return selectedEmailData.neighborsTop3[0];
+    }
+    return null;
+  }, [selectedEmailData]);
+  const neighborVerdict = topNeighbor ? (topNeighbor.label === 1 ? "phishing" : "benign") : null;
+  const highlight = React.useMemo(() => {
+    if (!topNeighbor) return { source: [], neighbor: [], matchedSentences: [] } as ReturnType<typeof computeHighlightRanges>;
+    return computeHighlightRanges(
+      selectedEmailData?.input.body ?? "",
+      topNeighbor.body || "",
+      { neighborSimilarity: Math.max(0, Math.min(1, topNeighbor.similarity)), sentenceThreshold: 0.5 }
+    );
+  }, [topNeighbor, selectedEmailData?.input.body]);
 
   if (selectedEmail && selectedEmailData) {
-    const topNeighbor = (selectedEmailData.neighborsTop3 && selectedEmailData.neighborsTop3.length > 0)
-      ? selectedEmailData.neighborsTop3[0]
-      : null;
-    const neighborVerdict = topNeighbor ? (topNeighbor.label === 1 ? "phishing" : "benign") : null;
     return (
       <div className="space-y-6">
         {toast && (
@@ -194,67 +213,71 @@ function AnalyticsTab({
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-lg font-semibold">Email Analysis</h2>
               <div className="flex items-center gap-2">
-                <span className={getLabelBadge(selectedEmailData.ai.ai_verdict === 'needs_review' ? 'suspicious' : selectedEmailData.ai.ai_verdict, selectedEmailData.ai.ai_score / 10)}>
-                  {selectedEmailData.ai.ai_verdict}
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  {(selectedEmailData.ai.ai_score * 10).toFixed(1)}% confidence
-                </span>
+                
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {/* Email Metadata */}
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">From</label>
-                  <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.sender}</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">To</label>
-                  <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.receiver}</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
-                  <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{new Date(selectedEmailData.savedAt).toLocaleString()}</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
-                  <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.subject}</p>
-                </div>
-              </div>
-
-              {/* Email Body */}
+              {/* Row 1: From / To */}
               <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">From</label>
+                <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.sender}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">To</label>
+                <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.receiver}</p>
+              </div>
+              {/* Row 2: Date / Subject */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
+                <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{new Date(selectedEmailData.savedAt).toLocaleString()}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
+                <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.subject}</p>
+              </div>
+              {/* Row 3: Body spans both columns */}
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Email Body</label>
-                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg max-h-72 overflow-y-auto">
-                  <pre className="text-xs text-slate-900 dark:text-slate-100 whitespace-pre-wrap font-sans">{selectedEmailData.input.body}</pre>
+                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg max-h-80 overflow-y-auto">
+                  {showHighlights ? (
+                    <HighlightedText text={selectedEmailData.input.body} ranges={highlight.source} className="text-xs text-slate-900 dark:text-slate-100" />
+                  ) : (
+                    <pre className="text-xs text-slate-900 dark:text-slate-100 whitespace-pre-wrap font-sans">{selectedEmailData.input.body}</pre>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Analysis Results */}
+            {/* Recommended Action only */}
             <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-              <h3 className="text-base font-medium mb-3">Analysis Results</h3>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
-                  <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Risk Level</h4>
-                  <p className={`text-xs font-medium ${selectedEmailData.ai.ai_verdict === 'phishing' ? 'text-red-600' : selectedEmailData.ai.ai_verdict === 'needs_review' ? 'text-yellow-600' : 'text-green-600'}`}>
-                    {selectedEmailData.ai.ai_verdict === 'phishing' ? 'High Risk' : selectedEmailData.ai.ai_verdict === 'needs_review' ? 'Medium Risk' : 'Low Risk'}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
-                  <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Confidence Score</h4>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">{(selectedEmailData.ai.ai_score * 10).toFixed(1)}%</p>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
-                  <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Recommended Action</h4>
+              <h3 className="text-base font-medium mb-3">Recommended Action</h3>
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleBlockAndAlert}
                     className="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                   >
                     Block & Alert
                   </button>
+                  <button
+                    onClick={handleIgnore}
+                    className="inline-flex items-center rounded-md border px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    Ignore
+                  </button>
+                  <div className="ml-auto flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+                      <input type="checkbox" checked={showHighlights} onChange={(e) => setShowHighlights(e.target.checked)} />
+                      Show similarity highlights
+                    </label>
+                    {showHighlights && (
+                      <span className="inline-flex items-center gap-2 text-[10px] text-slate-500">
+                        <span className="inline-block h-3 w-3 rounded-sm bg-yellow-200 border border-yellow-300" /> partial
+                        <span className="inline-block h-3 w-3 rounded-sm bg-yellow-400" /> strong
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -287,8 +310,12 @@ function AnalyticsTab({
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Email Body</label>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg max-h-72 overflow-y-auto">
-                      <pre className="text-xs text-slate-900 dark:text-slate-100 whitespace-pre-wrap font-sans">{topNeighbor.body || ""}</pre>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg max-h-80 overflow-y-auto">
+                      {showHighlights ? (
+                        <HighlightedText text={topNeighbor.body || ""} ranges={highlight.neighbor} className="text-xs text-slate-900 dark:text-slate-100" />
+                      ) : (
+                        <pre className="text-xs text-slate-900 dark:text-slate-100 whitespace-pre-wrap font-sans">{topNeighbor.body || ""}</pre>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -308,6 +335,29 @@ function AnalyticsTab({
                       <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Redactions</h4>
                       <p className="text-xs text-slate-600 dark:text-slate-300">{topNeighbor.redactions?.count ?? 0}</p>
                     </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        try {
+                          const src = selectedEmailData.input.body;
+                          const sents: string[] = [];
+                          for (const pair of highlight.matchedSentences) {
+                            const aStart = pair.sourceIdx;
+                            // naive: rely on recomputing sentences in util (not exported here), fallback to range slices used above
+                          }
+                          // Fallback: copy highlighted ranges from source
+                          const chunks = highlight.source.map((r) => src.slice(r.start, r.end));
+                          const textToCopy = chunks.join("\n\n");
+                          navigator.clipboard.writeText(textToCopy || "");
+                          setToast("Copied matching sentences");
+                          window.setTimeout(() => setToast(null), 1500);
+                        } catch {}
+                      }}
+                      className="inline-flex items-center rounded-md border px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                      Copy matching sentences
+                    </button>
                   </div>
                 </div>
               </>
@@ -413,15 +463,6 @@ function AnalyticsTab({
               <button className="w-full rounded-lg border px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm">
                 Export Report
               </button>
-            </div>
-          </section>
-
-          {/* Performance Metrics */}
-          <section className="rounded-2xl border bg-white/60 dark:bg-slate-900/40 backdrop-blur p-6 shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">Performance</h2>
-            <div className="space-y-4">
-              <ProgressBar label="Accuracy Rate" value={94.2} color="green" />
-              <ProgressBar label="Uptime" value={99.8} color="blue" />
             </div>
           </section>
         </div>

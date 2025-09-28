@@ -52,7 +52,7 @@ def _nearest_neighbors(vec: List[float], limit: int = 8) -> List[NeighborOut]:
                redacted_body,
                1 - (doc_emb <-> :q) AS cosine_similarity
         FROM messages
-        WHERE doc_emb IS NOT NULL
+        WHERE doc_emb IS NOT NULL AND label = 1
         ORDER BY doc_emb <-> :q
         LIMIT :lim
         """
@@ -110,24 +110,45 @@ def _summarize_reasons_with_llm(
             *[r for r in phase1.reasons][:3],
         ]
 
+    # Build concise neighbor context (all neighbors are labeled phishing due to retrieval filter)
     neighbor_lines = []
     for n in neighbors[:8]:
-        lab = "phish" if (n.label == 1) else ("legit" if n.label == 0 else "unknown")
-        neighbor_lines.append(f"id={n.id} label={lab} sim={n.similarity:.2f} subj={ (n.subject or '')[:60] }")
+        neighbor_lines.append(
+            f"id={n.id} label=phish sim={n.similarity:.2f} subj={(n.subject or '')[:60]}"
+        )
 
+    # Aggregate similarity stats for stronger guidance
+    sims = sorted([float(n.similarity) for n in neighbors], reverse=True)
+    top_sim = sims[0] if sims else 0.0
+    avg_top3 = (sum(sims[:3]) / max(1, min(3, len(sims)))) if sims else 0.0
+    avg_all = (sum(sims) / len(sims)) if sims else 0.0
+
+    # Summarize key deterministic indicators for the LLM
+    inds = phase1.indicators or {}
+    def _yn(v: object) -> str:
+        return "yes" if bool(v) else "no"
+
+    sender_domain = inds.get("sender_domain") or ""
     phase1_summary = (
         f"phase1_verdict={phase1.verdict} score={phase1.score} "
-        f"flags={'; '.join(phase1.reasons[:6])}"
+        f"auth(has_mx={_yn(inds.get('has_mx'))}, spf_present={_yn(inds.get('spf_present'))}, "
+        f"dmarc_present={_yn(inds.get('dmarc_present'))}, dmarc_policy={inds.get('dmarc_policy', 'none')}) "
+        f"sender_domain={sender_domain} "
+        f"link_hosts={(inds.get('link_hosts') or [])[:5]} "
+        f"urgency={_yn(inds.get('urgency'))} creds_request={_yn(inds.get('creds_request'))}"
     )
 
     prompt = (
-        "You are a security assistant. Given an email and deterministic flags, plus nearest neighbors, "
-        "write 3-5 short bullet reasons explaining whether it is phishing or not. "
-        "Be concrete (URLs, domain auth, urgency, similarity). Keep each bullet under 18 words."
-        "\n\nEmail Subject:\n" + subject[:200] +
-        "\nEmail Body (redacted):\n" + body[:800] +
-        "\n\nDeterministic Summary:\n" + phase1_summary +
-        "\nNearest Neighbors (doc_emb cosine similarity):\n- " + "\n- ".join(neighbor_lines) +
+        "System: You are a security assistant. All retrieved neighbors are labeled phishing (label=1). "
+        "Use them as risk exemplars for retrieval-augmented reasoning. Weigh both deterministic flags and neighbor similarity.\n\n"
+        "Task: Write 3–5 concise bullets explaining risk. Start each bullet with a tag in brackets "
+        "such as [URL], [AUTH], [URGENCY], [SIMILARITY], [CONTENT]. Keep each under 18 words.\n\n"
+        + "Email Subject:\n" + subject[:200]
+        + "\nEmail Body (redacted):\n" + body[:800]
+        + "\n\nDeterministic Summary:\n" + phase1_summary
+        + "\n\nNeighbor Stats (phish-only): top_sim=" + f"{top_sim:.2f}" +
+          ", avg_top3=" + f"{avg_top3:.2f}" + ", avg_all=" + f"{avg_all:.2f}" +
+        "\nNeighbors (doc_emb cosine similarity):\n- " + "\n- ".join(neighbor_lines) +
         "\n\nRespond as bullet points only, no preface."
     )
 

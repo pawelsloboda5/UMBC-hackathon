@@ -14,6 +14,7 @@ export default function AIInsightsCard({ data, loading = false, error, className
   return (
     <section className={`rounded-2xl border bg-white/60 dark:bg-slate-900/40 backdrop-blur p-6 shadow-sm ${className}`} aria-labelledby="ai-title">
       <h2 id="ai-title" className="text-lg font-semibold mb-4">AI Insights</h2>
+      <p className="text-xs text-slate-500 mb-3">Nearest neighbors are <strong>phishing-only</strong> (label=1) and used for RAG context.</p>
 
       {loading && (
         <div className="space-y-3 animate-pulse">
@@ -36,7 +37,7 @@ export default function AIInsightsCard({ data, loading = false, error, className
 
       {data && !loading && !error && (
         <div className="space-y-3">
-          <VerdictBadge aiVerdict={data.ai_verdict} />
+          {data.ai_verdict !== "benign" && <VerdictBadge aiVerdict={data.ai_verdict} />}
           {Array.isArray(data.ai_reasons) && data.ai_reasons.length > 0 && (
             <ul className="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300">
               {data.ai_reasons.slice(0, 5).map((r, i) => (
