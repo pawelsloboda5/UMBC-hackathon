@@ -1,0 +1,146 @@
+{
+  "num_rows": 1565,
+  "columns": [
+    "sender",
+    "receiver",
+    "date",
+    "subject",
+    "body",
+    "urls",
+    "label",
+    "sender_email"
+  ],
+  "missing_per_column": {
+    "sender": 0,
+    "receiver": 96,
+    "date": 1,
+    "subject": 4,
+    "body": 0,
+    "urls": 0,
+    "label": 0,
+    "sender_email": 0
+  },
+  "label_distribution": {
+    "1": 1565
+  },
+  "url_flag_distribution": {
+    "1": 1423,
+    "0": 142
+  },
+  "subject_length": {
+    "min": 0.0,
+    "p25": 25.0,
+    "mean": 40.55079872204473,
+    "p75": 51.0,
+    "max": 510.0
+  },
+  "body_length": {
+    "min": 1.0,
+    "p25": 393.0,
+    "mean": 4730.025559105431,
+    "p75": 1260.0,
+    "max": 4599644.0
+  },
+  "top_sender_domains": [
+    [
+      "monkey.org",
+      39
+    ],
+    [
+      "approject.com",
+      33
+    ],
+    [
+      "support.com",
+      14
+    ],
+    [
+      "gmail.com",
+      13
+    ],
+    [
+      "wetransfer.com",
+      13
+    ],
+    [
+      "mail.com",
+      12
+    ],
+    [
+      "standardbank.co.za",
+      12
+    ],
+    [
+      "absa.co.za",
+      12
+    ],
+    [
+      "mailsender.com",
+      10
+    ],
+    [
+      "cox.net",
+      9
+    ],
+    [
+      "t-online.de",
+      8
+    ],
+    [
+      "zimbra.com",
+      7
+    ],
+    [
+      "seedschoolmd.org",
+      7
+    ],
+    [
+      "noreply.com",
+      7
+    ],
+    [
+      "outlook.com",
+      6
+    ],
+    [
+      "server.com",
+      6
+    ],
+    [
+      "hotmail.com",
+      6
+    ],
+    [
+      "nedbank.co.za",
+      6
+    ],
+    [
+      "emailserver.com",
+      6
+    ],
+    [
+      "service.alibaba.com",
+      6
+    ]
+  ],
+  "summary": {
+    "total_rows": 1565,
+    "processed_rows": 1565,
+    "skipped_rows": 0,
+    "label_counts": {
+      "0": 0,
+      "1": 1565,
+      "missing": 0
+    },
+    "metrics": {
+      "tp": 1.0,
+      "tn": 0.0,
+      "fp": 0.0,
+      "fn": 1564.0,
+      "accuracy": 0.0006389776357827476,
+      "precision": 1.0,
+      "recall": 0.0006389776357827476,
+      "f1": 0.001277139208173691
+    }
+  }
+}
