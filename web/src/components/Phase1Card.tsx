@@ -1,5 +1,6 @@
 "use client";
 
+import ProgressBar from "./ProgressBar";
 import type { ScanResponse } from "@/types/scan";
 
 type Phase1CardProps = {
@@ -35,6 +36,8 @@ export default function Phase1Card({ data, loading = false, error, className = "
 
       {data && !loading && !error && (
         <div className="space-y-4">
+          <ProgressBar label="Danger" value={data.score} max={10} color={data.verdict === "phishing" ? "red" : data.verdict === "needs_review" ? "yellow" : "green"} showPercentage={false} />
+
           {data.reasons?.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold mb-2">Reasons</h3>
@@ -55,9 +58,9 @@ export default function Phase1Card({ data, loading = false, error, className = "
                   {(data.indicators as any)?.sender_domain ?? "—"}
                 </p>
               </div>
-              <div className="rounded-lg border p-3">
+              <div className="rounded-lg border p-3 h-40 overflow-hidden flex flex-col">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Link hosts</p>
-                <div className="mt-1 flex flex-wrap gap-1.5">
+                <div className="mt-1 flex-1 overflow-y-auto pr-1 flex flex-wrap gap-1.5 content-start">
                   {Array.isArray((data.indicators as any)?.link_hosts) && (data.indicators as any).link_hosts.length > 0 ? (
                     (data.indicators as any).link_hosts.map((h: string, i: number) => (
                       <span key={`${h}-${i}`} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">

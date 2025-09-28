@@ -471,6 +471,14 @@ function AnalyticsTab({
               <button className="w-full rounded-lg border px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm">
                 Export Report
               </button>
+              <a
+                href="https://best-nsai-cti-trainer.netlify.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-block rounded-lg border px-4 py-2 text-center hover:bg-slate-50 dark:hover:bg-slate-800 text-sm text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600 font-semibold transition-colors"
+              >
+                Open CTR Trainer
+              </a>
             </div>
           </section>
         </div>
