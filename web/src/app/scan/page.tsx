@@ -284,8 +284,8 @@ export default function ScanPage() {
       await analyzeOnce(next);
       // Reset form between rows for clarity
       setResetSignal((n) => n + 1);
-      // 5-second countdown before proceeding to the next row
-      for (let s = 5; s > 0 && !cancelled; s--) {
+      // 8-second countdown before proceeding to the next row (was 5s)
+      for (let s = 8; s > 0 && !cancelled; s--) {
         setCsvCountdown(s);
         await new Promise((r) => setTimeout(r, 1000));
       }
@@ -305,11 +305,7 @@ export default function ScanPage() {
     <main className="min-h-screen bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 p-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-          <div className="flex items-center gap-3">
-            {ai?.ai_verdict === "benign" ? null : (
-              <VerdictBadge phase1Verdict={phase1?.verdict} aiVerdict={ai?.ai_verdict} className="text-base" />
-            )}
-          </div>
+      
           <ScanStepper step={step} loadingPhase1={loadingPhase1} loadingAI={loadingAI} />
         </div>
 
