@@ -9,6 +9,15 @@ export type ScanResponse = {
   redacted_body: string;
 };
 
+// Mirrors api/app/schemas.py EmailIn
+export type EmailIn = {
+  sender: string;
+  receiver?: string;
+  subject: string;
+  body: string;
+  url: 0 | 1;
+};
+
 export type Neighbor = {
   id: number;
   label: 0 | 1 | null;
@@ -29,5 +38,18 @@ export type AIAnalyzeOut = {
   ai_score: number; // 0..10 higher = more likely phishing
   ai_reasons: string[]; // 3-5 concise bullets
 };
+
+// Minimal persisted payload for restoring a previous scan session
+export type PersistedScan = {
+  input: EmailIn;
+  domain: string;
+  phase1: ScanResponse;
+  neighborsTop3: Neighbor[];
+  ai: Pick<AIAnalyzeOut, "ai_verdict" | "ai_score" | "ai_reasons">;
+  savedAt: number; // epoch ms
+};
+
+// Row used by dashboard history list
+export type HistoryItem = PersistedScan & { id: string };
 
 

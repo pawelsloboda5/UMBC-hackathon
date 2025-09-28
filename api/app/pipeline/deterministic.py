@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 import dns.resolver
 import dns.exception
 
@@ -32,14 +32,19 @@ URGENCY_KEYWORDS = {
     "update your information",
 }
 
-CREDENTIAL_KEYWORDS = {
-    "password",
-    "login",
-    "ssn",
-    "social security",
-    "credit card",
-    "bank account",
-}
+CREDENTIAL_PATTERNS = [
+    re.compile(r"\bpasswords?\b", re.IGNORECASE),
+    re.compile(r"\blog\s*in\b", re.IGNORECASE),
+    re.compile(r"\blogin\b", re.IGNORECASE),
+    re.compile(r"\bssn\b", re.IGNORECASE),
+    re.compile(r"\bsocial\s+security\b", re.IGNORECASE),
+    re.compile(r"\bcredit\s+cards?\b", re.IGNORECASE),
+    re.compile(r"\bbank\s+accounts?\b", re.IGNORECASE),
+]
+
+REQUEST_VERB_PATTERNS = [
+    re.compile(r"\b(enter|provide|send|share|confirm|verify|update|reset|submit)\b", re.IGNORECASE),
+]
 
 
 def _extract_domain(addr: str) -> str:
@@ -48,7 +53,7 @@ def _extract_domain(addr: str) -> str:
     return addr.rsplit("@", 1)[1].lower().strip()
 
 
-_URL_HOST_RE = re.compile(r"https?://([^/\s]+)")
+_URL_HOST_RE = re.compile(r"(?:https?://|www\.)([^/\s]+)")
 _IP_LIT_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
 
 
@@ -167,6 +172,11 @@ def score_email(*, sender: str, subject: str, body: str, url_flag: int,
     if enable_dns_checks and sender_domain:
         auth = _auth_results_for_domain(sender_domain)
         indicators["auth"] = auth
+        # Flatten for UI consumption
+        indicators["has_mx"] = bool(auth.get("has_mx"))
+        indicators["spf_present"] = bool(auth.get("spf_present"))
+        indicators["dmarc_present"] = bool(auth.get("dmarc_present"))
+        indicators["dmarc_policy"] = auth.get("dmarc_policy") or "none"
         if not auth.get("has_mx"):
             score += weights.get("missing_mx", 0)
             reasons.append("Sender domain missing MX record")
@@ -213,7 +223,9 @@ def score_email(*, sender: str, subject: str, body: str, url_flag: int,
         reasons.append("Urgency language detected")
         indicators["urgency"] = True
 
-    if any(k in low_body for k in CREDENTIAL_KEYWORDS):
+    creds_hit = any(p.search(body) for p in CREDENTIAL_PATTERNS)
+    request_hit = any(p.search(body) for p in REQUEST_VERB_PATTERNS)
+    if creds_hit and request_hit:
         score += weights.get("creds_request", 0)
         reasons.append("Credentials/PII request language detected")
         indicators["creds_request"] = True

@@ -1,12 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
+import type { HistoryItem } from "@/types/scan";
 import StatsCard from "@/components/StatsCard";
 import ActivityFeed from "@/components/ActivityFeed";
 import ProgressBar from "@/components/ProgressBar";
 import StatusBadge from "@/components/StatusBadge";
 
 type Health = { status?: string; db?: boolean };
+
+// Local storage keys/events shared across pages
+const LS_HISTORY = "scan:history";
+const HISTORY_EVENT = "scan:history:updated";
 
 export default function DashboardProviderPage() {
   const [activeTab, setActiveTab] = useState("analytics");
@@ -35,74 +40,24 @@ export default function DashboardProviderPage() {
   const apiOk = health.status === "ok";
   const dbOk = Boolean(health.db);
 
-  // Mock data for dashboard - in a real app, this would come from API calls
-  const stats = {
-    totalScans: 1247,
-    phishingDetected: 89,
-    benignEmails: 1158,
-    avgProcessingTime: "2.3s"
-  };
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  const recentActivity = [
-    { id: 1, type: "scan" as const, email: "user@example.com", result: "phishing" as const, timestamp: "2 minutes ago" },
-    { id: 2, type: "scan" as const, email: "admin@company.com", result: "benign" as const, timestamp: "5 minutes ago" },
-    { id: 3, type: "scan" as const, email: "support@service.com", result: "suspicious" as const, timestamp: "8 minutes ago" },
-    { id: 4, type: "scan" as const, email: "newsletter@news.com", result: "benign" as const, timestamp: "12 minutes ago" },
-    { id: 5, type: "scan" as const, email: "urgent@bank.com", result: "phishing" as const, timestamp: "15 minutes ago" },
-  ];
-
-  const emailExamples = [
-    {
-      id: "email-1",
-      sender: "security@paypal.com",
-      receiver: "user@example.com",
-      date: "2024-01-15 14:30:25",
-      subject: "Urgent: Verify Your Account Immediately",
-      body: "Dear Customer,\n\nWe have detected suspicious activity on your PayPal account. To protect your account, please verify your identity by clicking the link below:\n\nhttps://paypal-security-verification.com/verify\n\nIf you do not verify your account within 24 hours, it will be suspended.\n\nBest regards,\nPayPal Security Team",
-      label: "phishing",
-      confidence: 0.95
-    },
-    {
-      id: "email-2",
-      sender: "noreply@github.com",
-      receiver: "developer@company.com",
-      date: "2024-01-15 10:15:42",
-      subject: "Pull Request #1234 has been merged",
-      body: "Hi there,\n\nYour pull request \"Fix authentication bug\" has been successfully merged into the main branch.\n\nYou can view the changes at:\nhttps://github.com/company/repo/pull/1234\n\nThanks for your contribution!\n\nGitHub",
-      label: "benign",
-      confidence: 0.98
-    },
-    {
-      id: "email-3",
-      sender: "support@microsoft.com",
-      receiver: "admin@company.com",
-      date: "2024-01-15 09:45:18",
-      subject: "Your Office 365 subscription is expiring soon",
-      body: "Hello,\n\nYour Office 365 Business Premium subscription will expire on January 30, 2024.\n\nTo continue using our services without interruption, please renew your subscription by visiting:\nhttps://admin.microsoft.com/billing\n\nIf you have any questions, please contact our support team.\n\nMicrosoft Support",
-      label: "suspicious",
-      confidence: 0.72
-    },
-    {
-      id: "email-4",
-      sender: "newsletter@techcrunch.com",
-      receiver: "reader@example.com",
-      date: "2024-01-15 08:00:00",
-      subject: "Weekly Tech News Roundup - AI Breakthroughs",
-      body: "This week in tech:\n\n• OpenAI releases GPT-5 with enhanced reasoning capabilities\n• Tesla announces new autonomous driving features\n• Google unveils quantum computing breakthrough\n\nRead the full articles on our website.\n\nUnsubscribe | Privacy Policy",
-      label: "benign",
-      confidence: 0.99
-    },
-    {
-      id: "email-5",
-      sender: "urgent@bank-security.com",
-      receiver: "customer@example.com",
-      date: "2024-01-15 16:22:33",
-      subject: "🚨 CRITICAL: Unauthorized Access Detected",
-      body: "URGENT SECURITY ALERT\n\nWe have detected unauthorized access to your bank account from an unknown device.\n\nTo secure your account immediately, click here:\nhttps://bank-security-verification.net/secure\n\nDo not ignore this message. Your account may be compromised.\n\nBank Security Department",
-      label: "phishing",
-      confidence: 0.89
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_HISTORY);
+      setHistory(raw ? (JSON.parse(raw) as HistoryItem[]) : []);
+    } catch {
+      setHistory([]);
     }
-  ];
+    const onUpdate = () => {
+      try {
+        const raw = localStorage.getItem(LS_HISTORY);
+        setHistory(raw ? (JSON.parse(raw) as HistoryItem[]) : []);
+      } catch {}
+    };
+    window.addEventListener(HISTORY_EVENT, onUpdate);
+    return () => window.removeEventListener(HISTORY_EVENT, onUpdate);
+  }, []);
 
   const tabs = [
     { id: "analytics", label: "Analytics" },
@@ -113,9 +68,7 @@ export default function DashboardProviderPage() {
     switch (activeTab) {
       case "analytics":
         return <AnalyticsTab 
-          stats={stats} 
-          recentActivity={recentActivity} 
-          emailExamples={emailExamples}
+          history={history}
           selectedEmail={selectedEmail}
           setSelectedEmail={setSelectedEmail}
           apiOk={apiOk} 
@@ -125,9 +78,7 @@ export default function DashboardProviderPage() {
         return <CaptureTheFlagTab />;
       default:
         return <AnalyticsTab 
-          stats={stats} 
-          recentActivity={recentActivity} 
-          emailExamples={emailExamples}
+          history={history}
           selectedEmail={selectedEmail}
           setSelectedEmail={setSelectedEmail}
           apiOk={apiOk} 
@@ -175,22 +126,33 @@ export default function DashboardProviderPage() {
 
 // Analytics Tab Component
 function AnalyticsTab({ 
-  stats, 
-  recentActivity, 
-  emailExamples, 
+  history,
   selectedEmail, 
   setSelectedEmail, 
   apiOk, 
   dbOk 
 }: {
-  stats: any;
-  recentActivity: any[];
-  emailExamples: any[];
+  history: HistoryItem[];
   selectedEmail: string | null;
   setSelectedEmail: (id: string | null) => void;
   apiOk: boolean;
   dbOk: boolean;
 }) {
+  const [toast, setToast] = useState<string | null>(null);
+
+  const handleBlockAndAlert = () => {
+    if (!selectedEmail) return;
+    try {
+      const raw = localStorage.getItem(LS_HISTORY);
+      const arr: HistoryItem[] = raw ? (JSON.parse(raw) as HistoryItem[]) : [];
+      const next = arr.filter((e) => e.id !== selectedEmail);
+      localStorage.setItem(LS_HISTORY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent(HISTORY_EVENT));
+    } catch {}
+    setSelectedEmail(null);
+    setToast("Alert sent to the receiver email");
+    window.setTimeout(() => setToast(null), 2500);
+  };
   const getLabelBadge = (label: string, confidence: number) => {
     const styles = {
       phishing: "bg-red-100 text-red-700 border-red-200",
@@ -200,11 +162,20 @@ function AnalyticsTab({
     return `inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${styles[label as keyof typeof styles] || styles.benign}`;
   };
 
-  const selectedEmailData = emailExamples.find(email => email.id === selectedEmail);
+  const selectedEmailData = history.find(email => email.id === selectedEmail);
 
   if (selectedEmail && selectedEmailData) {
+    const topNeighbor = (selectedEmailData.neighborsTop3 && selectedEmailData.neighborsTop3.length > 0)
+      ? selectedEmailData.neighborsTop3[0]
+      : null;
+    const neighborVerdict = topNeighbor ? (topNeighbor.label === 1 ? "phishing" : "benign") : null;
     return (
       <div className="space-y-6">
+        {toast && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-md bg-green-600 text-white shadow">
+            {toast}
+          </div>
+        )}
         {/* Back Button */}
         <button
           onClick={() => setSelectedEmail(null)}
@@ -216,138 +187,163 @@ function AnalyticsTab({
           Back to Email List
         </button>
 
-        {/* Email Detail View */}
-        <section className="rounded-2xl border bg-white/60 dark:bg-slate-900/40 backdrop-blur p-6 shadow-sm">
-          <div className="flex items-start justify-between mb-6">
-            <h2 className="text-xl font-semibold">Email Analysis</h2>
-            <div className="flex items-center gap-2">
-              <span className={getLabelBadge(selectedEmailData.label, selectedEmailData.confidence)}>
-                {selectedEmailData.label}
-              </span>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {(selectedEmailData.confidence * 100).toFixed(1)}% confidence
-              </span>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Email Metadata */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">From</label>
-                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">
-                  {selectedEmailData.sender}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">To</label>
-                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">
-                  {selectedEmailData.receiver}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
-                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">
-                  {selectedEmailData.date}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
-                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">
-                  {selectedEmailData.subject}
-                </p>
+        {/* Comparison View: Selected Email vs Top Neighbor */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Email Detail View (smaller) */}
+          <section className="rounded-2xl border bg-white/60 dark:bg-slate-900/40 backdrop-blur p-6 shadow-sm">
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="text-lg font-semibold">Email Analysis</h2>
+              <div className="flex items-center gap-2">
+                <span className={getLabelBadge(selectedEmailData.ai.ai_verdict === 'needs_review' ? 'suspicious' : selectedEmailData.ai.ai_verdict, selectedEmailData.ai.ai_score / 10)}>
+                  {selectedEmailData.ai.ai_verdict}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  {(selectedEmailData.ai.ai_score * 10).toFixed(1)}% confidence
+                </span>
               </div>
             </div>
 
-            {/* Email Body */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email Body</label>
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg max-h-96 overflow-y-auto">
-                <pre className="text-sm text-slate-900 dark:text-slate-100 whitespace-pre-wrap font-sans">
-                  {selectedEmailData.body}
-                </pre>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Email Metadata */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">From</label>
+                  <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.sender}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">To</label>
+                  <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.receiver}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
+                  <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{new Date(selectedEmailData.savedAt).toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
+                  <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{selectedEmailData.input.subject}</p>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Analysis Results */}
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-medium mb-4">Analysis Results</h3>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
-                <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-2">Risk Level</h4>
-                <p className={`text-sm font-medium ${
-                  selectedEmailData.label === 'phishing' ? 'text-red-600' :
-                  selectedEmailData.label === 'suspicious' ? 'text-yellow-600' : 'text-green-600'
-                }`}>
-                  {selectedEmailData.label === 'phishing' ? 'High Risk' :
-                   selectedEmailData.label === 'suspicious' ? 'Medium Risk' : 'Low Risk'}
-                </p>
-              </div>
-              <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
-                <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-2">Confidence Score</h4>
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  {(selectedEmailData.confidence * 100).toFixed(1)}%
-                </p>
-              </div>
-              <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
-                <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-2">Recommended Action</h4>
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  {selectedEmailData.label === 'phishing' ? 'Block & Report' :
-                   selectedEmailData.label === 'suspicious' ? 'Review Manually' : 'Allow'}
-                </p>
+              {/* Email Body */}
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Email Body</label>
+                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg max-h-72 overflow-y-auto">
+                  <pre className="text-xs text-slate-900 dark:text-slate-100 whitespace-pre-wrap font-sans">{selectedEmailData.input.body}</pre>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+
+            {/* Analysis Results */}
+            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <h3 className="text-base font-medium mb-3">Analysis Results</h3>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                  <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Risk Level</h4>
+                  <p className={`text-xs font-medium ${selectedEmailData.ai.ai_verdict === 'phishing' ? 'text-red-600' : selectedEmailData.ai.ai_verdict === 'needs_review' ? 'text-yellow-600' : 'text-green-600'}`}>
+                    {selectedEmailData.ai.ai_verdict === 'phishing' ? 'High Risk' : selectedEmailData.ai.ai_verdict === 'needs_review' ? 'Medium Risk' : 'Low Risk'}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                  <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Confidence Score</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">{(selectedEmailData.ai.ai_score * 10).toFixed(1)}%</p>
+                </div>
+                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                  <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Recommended Action</h4>
+                  <button
+                    onClick={handleBlockAndAlert}
+                    className="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                  >
+                    Block & Alert
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Top Neighbor View (smaller) */}
+          <section className="rounded-2xl border bg-white/60 dark:bg-slate-900/40 backdrop-blur p-6 shadow-sm">
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="text-lg font-semibold">Nearest Neighbor</h2>
+              {topNeighbor && (
+                <div className="flex items-center gap-2">
+                  <span className={getLabelBadge(neighborVerdict!, topNeighbor.similarity)}>
+                    {neighborVerdict}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {(Math.max(0, Math.min(1, topNeighbor.similarity)) * 100).toFixed(1)}% similar
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {!topNeighbor ? (
+              <div className="text-sm text-slate-500">No neighbor data available.</div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
+                    <p className="text-xs text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 p-2 rounded">{topNeighbor.subject || "(no subject)"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Email Body</label>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg max-h-72 overflow-y-auto">
+                      <pre className="text-xs text-slate-900 dark:text-slate-100 whitespace-pre-wrap font-sans">{topNeighbor.body || ""}</pre>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <h3 className="text-base font-medium mb-3">Neighbor Details</h3>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                      <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Dataset Label</h4>
+                      <p className={`text-xs font-medium ${neighborVerdict === 'phishing' ? 'text-red-600' : 'text-green-600'}`}>{neighborVerdict}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                      <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Similarity</h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-300">{(Math.max(0, Math.min(1, topNeighbor.similarity)) * 100).toFixed(1)}%</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                      <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1 text-sm">Redactions</h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-300">{topNeighbor.redactions?.count ?? 0}</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+        {/* End comparison grid */}
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-md bg-green-600 text-white shadow">
+          {toast}
+        </div>
+      )}
       {/* Statistics Cards */}
       <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatsCard
-          title="Total Scans"
-          value={stats.totalScans}
-          color="blue"
-          icon={
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          }
-        />
-        <StatsCard
-          title="Phishing Detected"
-          value={stats.phishingDetected}
-          color="red"
-          icon={
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          }
-        />
-        <StatsCard
-          title="Benign Emails"
-          value={stats.benignEmails}
-          color="green"
-          icon={
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
+        <StatsCard title="Total Scans" value={history.length} color="blue" icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
+        <StatsCard title="Phishing Detected" value={history.filter(h => h.ai.ai_verdict === 'phishing').length} color="red" icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" /></svg>} />
+        <StatsCard title="Benign Emails" value={history.filter(h => h.ai.ai_verdict === 'benign').length} color="green" icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
       </section>
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Email Examples List */}
+        {/* History List */}
         <div className="lg:col-span-2">
           <section className="rounded-2xl border bg-white/60 dark:bg-slate-900/40 backdrop-blur p-6 shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">Email Examples</h2>
+            <h2 className="text-lg font-semibold mb-4">Scan History</h2>
             <div className="space-y-3">
-              {emailExamples.map((email) => (
+              {history.length === 0 && (
+                <div className="text-sm text-slate-500">No scans yet. Run a scan from the Scan page to see history here.</div>
+              )}
+              {history.map((email) => (
                 <div
                   key={email.id}
                   onClick={() => setSelectedEmail(email.id)}
@@ -356,26 +352,26 @@ function AnalyticsTab({
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <h3 className="font-medium text-slate-900 dark:text-slate-100 mb-1">
-                        {email.subject}
+                        {email.input.subject}
                       </h3>
                       <p className="text-sm text-slate-600 dark:text-slate-300">
-                        From: {email.sender} • To: {email.receiver}
+                        From: {email.input.sender} • To: {email.input.receiver || "—"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
-                      <span className={getLabelBadge(email.label, email.confidence)}>
-                        {email.label}
+                      <span className={getLabelBadge(email.ai.ai_verdict === 'needs_review' ? 'suspicious' : email.ai.ai_verdict, email.ai.ai_score / 10)}>
+                        {email.ai.ai_verdict}
                       </span>
                       <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {(email.confidence * 100).toFixed(0)}%
+                        {(email.ai.ai_score * 10).toFixed(0)}%
                       </span>
                     </div>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {email.date}
+                    {new Date(email.savedAt).toLocaleString()}
                   </p>
                   <p className="text-sm text-slate-600 dark:text-slate-300 mt-2 line-clamp-2">
-                    {email.body.substring(0, 100)}...
+                    {email.input.body.substring(0, 100)}...
                   </p>
                 </div>
               ))}

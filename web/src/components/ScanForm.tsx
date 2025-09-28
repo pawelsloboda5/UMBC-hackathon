@@ -15,13 +15,16 @@ type ScanFormProps = {
   loading?: boolean;
   initial?: Partial<Values>;
   className?: string;
+  onReset?: () => void;
+  resetSignal?: number;
+  onUploadCsv?: (file: File) => void;
 };
 
 function computeUrlFlag(text: string): 0 | 1 {
   return /https?:\/\/|www\./i.test(text) ? 1 : 0;
 }
 
-export default function ScanForm({ onSubmit, loading = false, initial, className = "" }: ScanFormProps) {
+export default function ScanForm({ onSubmit, loading = false, initial, className = "", onReset, resetSignal, onUploadCsv }: ScanFormProps) {
   const [sender, setSender] = React.useState(initial?.sender ?? "");
   const [receiver, setReceiver] = React.useState(initial?.receiver ?? "");
   const [subject, setSubject] = React.useState(initial?.subject ?? "");
@@ -44,13 +47,40 @@ export default function ScanForm({ onSubmit, loading = false, initial, className
     onSubmit({ sender, receiver: receiver || undefined, subject, body, url: computeUrlFlag(body) });
   }
 
-  function reset() {
+  function resetLocal() {
     setSender("");
     setReceiver("");
     setSubject("");
     setBody("");
     setErrors({});
   }
+
+  function handleResetClick() {
+    resetLocal();
+    onReset?.();
+  }
+
+  function applyInitialFromProps() {
+    setSender(initial?.sender ?? "");
+    setReceiver(initial?.receiver ?? "");
+    setSubject(initial?.subject ?? "");
+    setBody(initial?.body ?? "");
+    setErrors({});
+  }
+
+  // Hydrate when initial changes (e.g., CSV current row)
+  React.useEffect(() => {
+    if (!initial) return;
+    applyInitialFromProps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
+
+  // External reset signal
+  React.useEffect(() => {
+    if (resetSignal === undefined) return;
+    applyInitialFromProps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSignal]);
 
   return (
     <form onSubmit={handleSubmit} className={`space-y-4 ${className}`} aria-describedby="form-hint">
@@ -99,7 +129,7 @@ export default function ScanForm({ onSubmit, loading = false, initial, className
         <div className="text-xs text-slate-500 mt-1">URL flag: {computeUrlFlag(body)}</div>
       </Field>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 items-center flex-wrap">
         <button
           type="submit"
           disabled={loading}
@@ -109,11 +139,24 @@ export default function ScanForm({ onSubmit, loading = false, initial, className
         </button>
         <button
           type="button"
-          onClick={reset}
+          onClick={handleResetClick}
           className="rounded-lg border px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
         >
           Reset
         </button>
+        <label className="inline-flex items-center rounded-lg border px-4 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 text-sm">
+          Add CSV
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f && onUploadCsv) onUploadCsv(f);
+              e.currentTarget.value = "";
+            }}
+            className="sr-only"
+          />
+        </label>
       </div>
     </form>
   );

@@ -100,12 +100,6 @@ export default function NeighborsList({ neighbors, className = "", loading = fal
                         </div>
                       )}
                     </div>
-                    <div className="shrink-0 text-right">
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${labelStyle(n.label)}`}>
-                        {n.label === 1 ? "phish" : n.label === 0 ? "legit" : "unknown"}
-                      </span>
-                      <div className="text-xs text-slate-500">{n.similarity.toFixed(2)}</div>
-                    </div>
                   </div>
                 </li>
               );
